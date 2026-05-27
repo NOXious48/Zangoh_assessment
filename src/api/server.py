@@ -14,6 +14,7 @@ import asyncio
 import logging
 import os
 import time
+import base64
 
 from dotenv import load_dotenv
 
@@ -40,6 +41,20 @@ class TextResponse(BaseModel):
     """Response model for text queries."""
     response_text: str
     audio_available: bool
+    processing_time_ms: int
+
+class TranscriptData(BaseModel):
+    user_input: str
+    agent_response: str
+
+class EnhancedAudioResponse(BaseModel):
+    success: bool
+    audio_response: str
+    transcript: TranscriptData
+    processing_time_ms: int
+
+class EnhancedTextResponse(BaseModel):
+    response_text: str
     processing_time_ms: int
 
 
@@ -201,18 +216,18 @@ async def chat_text(request: TextRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/chat/audio")
+@app.post("/chat/audio", response_model=EnhancedAudioResponse)
 async def chat_audio(audio: UploadFile = File(...)):
     """
     Process audio query through the complete pipeline.
     
-    This endpoint handles the full STT -> LLM -> TTS pipeline.
+    This endpoint handles the full STT -> LLM -> TTS pipeline and returns JSON.
     
     Args:
         audio: Audio file upload (WAV, MP3, etc.)
         
     Returns:
-        Audio response as bytes
+        JSON with base64 encoded audio and transcript data
     """
     global pipeline
     
@@ -227,16 +242,17 @@ async def chat_audio(audio: UploadFile = File(...)):
         if len(audio_bytes) == 0:
             raise HTTPException(status_code=400, detail="Empty audio file")
         
-        # Process through the complete pipeline (STT -> LLM -> TTS)
-        response_audio = await pipeline.process_audio(audio_bytes)
+        # Process through the complete pipeline with transcript
+        response_audio, transcript_data, processing_time_ms = await pipeline.process_audio_with_transcript(audio_bytes)
         
-        # Return audio response
-        return Response(
-            content=response_audio,
-            media_type="audio/mpeg",
-            headers={
-                "Content-Disposition": "attachment; filename=response.mp3"
-            }
+        audio_b64 = base64.b64encode(response_audio).decode('utf-8')
+        
+        # Return JSON response
+        return EnhancedAudioResponse(
+            success=True,
+            audio_response=audio_b64,
+            transcript=TranscriptData(**transcript_data),
+            processing_time_ms=processing_time_ms
         )
         
     except HTTPException:

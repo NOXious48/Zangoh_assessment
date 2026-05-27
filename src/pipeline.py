@@ -7,6 +7,7 @@ All three components are wired together to process audio input end-to-end.
 
 import asyncio
 import logging
+import time
 from typing import Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 
@@ -208,6 +209,53 @@ class AudioSupportPipeline:
             
         except Exception as e:
             self.logger.error(f"Cleanup failed: {str(e)}")
+            raise
+
+    def _create_transcript_data(self, user_input: str, agent_response: str) -> Dict[str, Any]:
+        """Create structured transcript data."""
+        return {
+            "user_input": user_input,
+            "agent_response": agent_response
+        }
+
+    async def process_audio_with_transcript(self, audio_bytes: bytes, **kwargs) -> Tuple[bytes, Dict[str, Any], int]:
+        """Process audio and capture transcript data and processing time."""
+        if not self.is_initialized:
+            raise RuntimeError("Pipeline not initialized. Call initialize() first.")
+        
+        start_time = time.time()
+        try:
+            # Step 1: STT
+            text_input = await self.stt.transcribe(audio_bytes, **kwargs)
+            
+            # Step 2: LLM
+            agent_response = await self.llm_agent.process_query(text_input, **kwargs)
+            
+            # Step 3: TTS
+            response_audio = await self.tts.synthesize(agent_response, **kwargs)
+            
+            # Metadata & Transcript
+            processing_time_ms = int((time.time() - start_time) * 1000)
+            transcript_data = self._create_transcript_data(text_input, agent_response)
+            
+            return response_audio, transcript_data, processing_time_ms
+            
+        except Exception as e:
+            self.logger.error(f"Pipeline processing with transcript failed: {str(e)}")
+            raise
+
+    async def process_text_with_timing(self, text: str, **kwargs) -> Tuple[str, int]:
+        """Process text and capture processing time"""
+        if not self.is_initialized:
+            raise RuntimeError("Pipeline not initialized. Call initialize() first.")
+            
+        start_time = time.time()
+        try:
+            agent_response = await self.llm_agent.process_query(text, **kwargs)
+            processing_time_ms = int((time.time() - start_time) * 1000)
+            return agent_response, processing_time_ms
+        except Exception as e:
+            self.logger.error(f"Text processing with timing failed: {str(e)}")
             raise
 
 

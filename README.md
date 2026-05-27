@@ -31,8 +31,10 @@ The system is built with modularity and asynchronous processing in mind, utilizi
 6. **Testing UI**: `streamlit_app.py`
    - A Streamlit-based web interface for testing text/audio chats and visualizing system health.
 
-### Mid-Session Requirement
-*(Note: If you have a specific mid-session requirement implementation to detail for your submission, please describe it here.)*
+### Mid-Session Requirement: Transcript Enhancement
+The pipeline has been enhanced to return **transcripts and processing times** alongside the audio response. 
+- The `/chat/audio` endpoint now returns a JSON payload containing `success`, the base64-encoded `audio_response`, a `transcript` object (with both user query and agent response), and `processing_time_ms`.
+- The Streamlit UI has been updated to feature a dual-display layout, rendering the extracted transcript and processing time next to the audio controls.
 
 ---
 
@@ -108,9 +110,10 @@ curl -X POST http://localhost:8000/chat/text \
 ```
 
 **Audio Chat Endpoint (Full Pipeline):**
+*Note: This endpoint now returns a JSON payload with base64 audio and transcript data.*
 ```bash
 curl -X POST http://localhost:8000/chat/audio \
-  -F "audio=@test_audio.wav" --output response.mp3
+  -F "audio=@test_audio.wav"
 ```
 
 ---

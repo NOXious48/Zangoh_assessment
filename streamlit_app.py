@@ -51,6 +51,8 @@ def init_session_state():
         st.session_state.recording = False
     if "audio_data" not in st.session_state:
         st.session_state.audio_data = None
+    if "last_audio_result" not in st.session_state:
+        st.session_state.last_audio_result = None
 
 def check_server_status(server_url: str) -> Dict[str, Any]:
     """Check if the API server is running and get health status."""
@@ -125,10 +127,14 @@ def send_audio_message(server_url: str, audio_data: bytes) -> Dict[str, Any]:
         )
         
         if response.status_code == 200:
+            json_response = response.json()
+            audio_bytes = base64.b64decode(json_response['audio_response'])
             return {
                 "success": True,
-                "audio_data": response.content,
-                "content_type": response.headers.get('content-type', 'audio/mpeg')
+                "audio_data": audio_bytes,
+                "transcript": json_response.get("transcript", {}),
+                "processing_time_ms": json_response.get("processing_time_ms", 0),
+                "content_type": "audio/mpeg"
             }
         else:
             return {
@@ -305,12 +311,12 @@ def main():
     
     with tab2:
         st.header(" Audio Chat Interface")
-        st.markdown("Test the complete audio pipeline: record audio, get audio response.")
+        st.markdown("Test the complete audio pipeline: record audio, get audio response, and see the transcript.")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader(" Audio Input")
+            st.subheader(" Audio Controls")
             
             # Recording controls
             if AUDIO_RECORDING_AVAILABLE:
@@ -338,9 +344,6 @@ def main():
                 st.session_state.audio_data = uploaded_file.read()
                 st.audio(st.session_state.audio_data)
         
-        with col2:
-            st.subheader(" Audio Output")
-            
             # Send audio for processing
             if st.session_state.audio_data:
                 if st.button(" Send Audio to Agent", type="primary"):
@@ -349,11 +352,30 @@ def main():
                     
                     if result['success']:
                         st.success(" Audio processed successfully!")
-                        create_audio_player(result['audio_data'], "Agent Response")
+                        st.session_state.last_audio_result = result
                     else:
                         st.error(f" Error: {result['error']}")
             else:
                 st.info("👆 Record or upload audio first")
+                
+            if st.session_state.last_audio_result:
+                create_audio_player(st.session_state.last_audio_result['audio_data'], "Agent Response")
+        
+        with col2:
+            st.subheader(" Transcript")
+            
+            if st.session_state.last_audio_result:
+                result = st.session_state.last_audio_result
+                transcript = result.get("transcript", {})
+                
+                st.markdown(f"**User:** \"{transcript.get('user_input', 'N/A')}\"")
+                st.markdown(f"**Agent:** \"{transcript.get('agent_response', 'N/A')}\"")
+                
+                st.divider()
+                st.markdown(f"**Processing Time:**")
+                st.markdown(f"- Total: {result.get('processing_time_ms', 0) / 1000.0:.2f}s")
+            else:
+                st.info("Transcript will appear here after processing.")
     
     with tab3:
         st.header(" Health Monitor")

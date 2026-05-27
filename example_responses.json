@@ -1,0 +1,41 @@
+{
+  "current_text_response_example": {
+    "response_text": "We offer a 30-day return policy for all products purchased from our store. Items must be in original condition with all tags and packaging intact. Returns are processed within 5-7 business days of receiving the returned item. Refunds are issued to the original payment method.",
+    "audio_available": true,
+    "processing_time_ms": 1250
+  },
+
+  "current_audio_response_example": {
+    "note": "Audio endpoint returns raw audio bytes with Content-Type: audio/mpeg",
+    "headers": {
+      "Content-Type": "audio/mpeg", 
+      "Content-Disposition": "attachment; filename=response.mp3"
+    },
+    "body": "Binary audio data (not JSON)"
+  },
+
+  "enhanced_audio_response_example": {
+    "success": true,
+    "audio_response": "UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
+    "transcript": {
+      "user_input": "What is your return policy?",
+      "agent_response": "We offer a 30-day return policy for all products purchased from our store. Items must be in original condition with all tags and packaging intact. Returns are processed within 5-7 business days of receiving the returned item. Refunds are issued to the original payment method."
+    },
+    "processing_time_ms": 2050
+  },
+
+  "enhanced_text_response_example": {
+    "response_text": "We offer multiple shipping options: Standard shipping (5-7 business days, free on orders over $50), Express shipping (2-3 business days, $12.99), Next-day shipping (1 business day, $24.99). All orders placed before 2 PM EST ship the same day.",
+    "processing_time_ms": 950
+  },
+
+  "error_response_example": {
+    "success": false,
+    "error": "STT service temporarily unavailable",
+    "transcript": {
+      "user_input": null,
+      "agent_response": null
+    },
+    "processing_time_ms": 100
+  }
+}
