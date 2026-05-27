@@ -102,81 +102,54 @@ class BaseTTS(ABC):
 
 class TTSService(BaseTTS):
     """
-    OpenAI TTS API implementation.
+    Edge-TTS implementation.
     
-    Uses OpenAI's text-to-speech models for natural-sounding speech synthesis.
-    Supports multiple voices and output formats.
+    Uses Microsoft Edge's free TTS service for speech synthesis.
     
     Input: text (str) - Text to convert to speech
-    Output: audio_bytes (bytes) - Audio data (MP3 format)
+    Output: audio_bytes (bytes) - Audio data
     """
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
-        self.client = None
         self.voice = None
-        self.model = None
+        self._rate = None
+        self._volume = None
     
     async def initialize(self) -> None:
         """
-        Initialize the OpenAI TTS service.
-        
-        Steps:
-        1. Get API key from config or environment
-        2. Create AsyncOpenAI client instance
-        3. Set voice and model parameters
-        4. Set is_initialized to True
+        Initialize the Edge-TTS service.
         """
-        import os
-        from openai import AsyncOpenAI
-        
-        api_key = self.config.get("api_key") or os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OpenAI API key not provided. Set OPENAI_API_KEY or pass api_key in config.")
-        
-        self.client = AsyncOpenAI(api_key=api_key)
-        self.voice = self.config.get("voice", "alloy")
-        self.model = self.config.get("model", "tts-1")
-        self.is_initialized = True
-        logger.info(f"TTS service initialized with model: {self.model}, voice: {self.voice}")
+        self.voice = self.config.get("voice", "en-US-AriaNeural") 
+        self._rate = self.config.get("rate", "+0%")
+        self._volume = self.config.get("volume", "+0%")
+        self.is_initialized = True 
+        logger.info(f"TTS service initialized with voice: {self.voice}")
     
     async def synthesize(self, text: str, **kwargs) -> bytes:
         """
-        Convert text to speech using OpenAI TTS API.
-        
-        Input: text (str) - Text to convert to speech
-        Output: bytes - Audio data in MP3 format
-        
-        Steps:
-        1. Check if service is initialized
-        2. Validate input text
-        3. Call OpenAI TTS API
-        4. Return audio bytes
+        Convert text to speech using Edge-TTS.
         """
         if not self.is_ready():
             raise RuntimeError("TTS service not initialized")
-        
+            
         if not text.strip():
             raise ValueError("Text cannot be empty")
+            
+        import edge_tts 
         
         try:
-            # Get voice override from kwargs or use default
             voice = kwargs.get("voice", self.voice)
-            model = kwargs.get("model", self.model)
-            speed = kwargs.get("speed", 1.0)
+            rate = kwargs.get("rate", self._rate)
+            volume = kwargs.get("volume", self._volume)
             
-            # Call OpenAI TTS API
-            response = await self.client.audio.speech.create(
-                model=model,
-                voice=voice,
-                input=text,
-                speed=speed,
-                response_format="mp3",
-            )
+            communicate = edge_tts.Communicate(text, voice, rate=rate, volume=volume) 
+            audio_bytes = b"" 
             
-            # Read the response content as bytes
-            audio_bytes = response.content
-            
+            async for chunk in communicate.stream(): 
+                if chunk["type"] == "audio": 
+                    audio_bytes += chunk["data"] 
+                    
             logger.info(f"TTS synthesis complete: {len(audio_bytes)} bytes generated for text: '{text[:50]}...'")
             return audio_bytes
             
@@ -187,17 +160,10 @@ class TTSService(BaseTTS):
     async def synthesize_stream(self, text: str, **kwargs) -> io.BytesIO:
         """
         Convert text to speech with streaming support.
-        
-        Falls back to full synthesis and wraps the result in a BytesIO buffer
-        for compatibility with streaming interfaces.
-        
-        Input: text (str) - Text to convert to speech
-        Output: io.BytesIO - Streaming audio data buffer
         """
         if not self.is_ready():
             raise RuntimeError("TTS service not initialized")
         
-        # Perform full synthesis and wrap in buffer
         audio_data = await self.synthesize(text, **kwargs)
         audio_buffer = io.BytesIO(audio_data)
         audio_buffer.seek(0)
@@ -206,36 +172,7 @@ class TTSService(BaseTTS):
     async def cleanup(self) -> None:
         """
         Cleanup TTS resources.
-        
-        Steps:
-        1. Close the OpenAI client
-        2. Clear voice and model references
-        3. Set is_initialized to False
         """
-        if self.client:
-            await self.client.close()
-        self.client = None
-        self.voice = None
-        self.model = None
+        self._voice = None
         self.is_initialized = False
         logger.info("TTS service cleaned up")
-    
-    async def get_available_voices(self) -> List[Dict[str, Any]]:
-        """
-        Get list of available OpenAI TTS voices.
-        
-        Returns:
-            List of available voices with their metadata
-        """
-        if not self.is_ready():
-            raise RuntimeError("TTS service not initialized")
-        
-        # OpenAI's available TTS voices
-        return [
-            {"voice_id": "alloy", "name": "Alloy", "description": "Neutral and balanced"},
-            {"voice_id": "echo", "name": "Echo", "description": "Warm and engaging"},
-            {"voice_id": "fable", "name": "Fable", "description": "Expressive and dynamic"},
-            {"voice_id": "onyx", "name": "Onyx", "description": "Deep and authoritative"},
-            {"voice_id": "nova", "name": "Nova", "description": "Friendly and upbeat"},
-            {"voice_id": "shimmer", "name": "Shimmer", "description": "Clear and gentle"},
-        ]

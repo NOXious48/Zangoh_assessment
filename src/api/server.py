@@ -73,38 +73,27 @@ async def startup_event():
     """
     Initialize the pipeline on server startup.
     
-    Uses OpenAI API for all three services (STT, LLM, TTS) with a single API key.
+    Uses local stack services (STT, LLM, TTS).
     """
     global pipeline
     
     try:
         logger.info("Starting Audio Support Agent API server...")
         
-        # Get OpenAI API key from environment
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key or api_key == "your_openai_api_key_here":
-            logger.warning(
-                "OPENAI_API_KEY not set! Please set your API key in the .env file. "
-                "Server will start but pipeline will not be functional."
-            )
-            return
-        
-        # Configure all services using OpenAI
         stt_config = {
-            "api_key": api_key,
-            "model": "whisper-1",
+            "model": os.getenv("WHISPER_MODEL", "tiny"),
         }
-        
+
         llm_config = {
-            "api_key": api_key,
-            "model": os.getenv("LLM_MODEL", "gpt-3.5-turbo"),
-            "temperature": 0.7,
+            "model": os.getenv("OLLAMA_MODEL", "phi3:mini"),
+            "base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+            "temperature": float(os.getenv("LLM_TEMPERATURE", "0.3")),
         }
-        
+
         tts_config = {
-            "api_key": api_key,
-            "voice": os.getenv("TTS_VOICE", "alloy"),
-            "model": "tts-1",
+            "voice": os.getenv("EDGE_TTS_VOICE", "en-US-AriaNeural"),
+            "rate": os.getenv("EDGE_TTS_RATE", "+0%"),
+            "volume": os.getenv("EDGE_TTS_VOLUME", "+0%"),
         }
         
         # Create and initialize the pipeline
@@ -156,7 +145,7 @@ async def health_check():
                 "llm_ready": False,
                 "tts_ready": False
             },
-            message="Pipeline not initialized. Check OPENAI_API_KEY in .env file."
+            message="Pipeline not initialized."
         )
     
     try:
@@ -188,7 +177,7 @@ async def chat_text(request: TextRequest):
     global pipeline
     
     if not pipeline:
-        raise HTTPException(status_code=503, detail="Pipeline not initialized. Set OPENAI_API_KEY in .env file.")
+        raise HTTPException(status_code=503, detail="Pipeline not initialized.")
     
     try:
         start_time = time.time()
@@ -228,7 +217,7 @@ async def chat_audio(audio: UploadFile = File(...)):
     global pipeline
     
     if not pipeline:
-        raise HTTPException(status_code=503, detail="Pipeline not initialized. Set OPENAI_API_KEY in .env file.")
+        raise HTTPException(status_code=503, detail="Pipeline not initialized.")
     
     try:
         # Read audio file
@@ -273,7 +262,7 @@ async def text_to_audio(text: str):
     global pipeline
     
     if not pipeline:
-        raise HTTPException(status_code=503, detail="Pipeline not initialized. Set OPENAI_API_KEY in .env file.")
+        raise HTTPException(status_code=503, detail="Pipeline not initialized.")
     
     try:
         if not pipeline.tts:
@@ -310,7 +299,7 @@ async def debug_stt(audio: UploadFile = File(...)):
     global pipeline
     
     if not pipeline:
-        raise HTTPException(status_code=503, detail="Pipeline not initialized. Set OPENAI_API_KEY in .env file.")
+        raise HTTPException(status_code=503, detail="Pipeline not initialized.")
     
     try:
         audio_bytes = await audio.read()

@@ -84,10 +84,10 @@ class BaseSTT(ABC):
 
 class STTService(BaseSTT):
     """
-    OpenAI Whisper API STT implementation.
+    Local Whisper STT implementation.
     
-    Uses OpenAI's Whisper model (whisper-1) for high-accuracy cloud-based
-    speech-to-text transcription. Supports WAV, MP3, OGG, FLAC formats.
+    Uses OpenAI's Whisper model locally for high-accuracy
+    speech-to-text transcription.
     
     Input: audio_bytes (bytes) - Raw audio data
     Output: transcribed_text (str) - The text transcription
@@ -99,67 +99,37 @@ class STTService(BaseSTT):
     
     async def initialize(self) -> None:
         """
-        Initialize the OpenAI Whisper STT service.
-        
-        Steps:
-        1. Get API key from config or environment
-        2. Create AsyncOpenAI client instance
-        3. Set is_initialized to True
+        Initialize the local Whisper STT service.
         """
-        import os
-        from openai import AsyncOpenAI
-        
-        api_key = self.config.get("api_key") or os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OpenAI API key not provided. Set OPENAI_API_KEY or pass api_key in config.")
-        
-        self.client = AsyncOpenAI(api_key=api_key)
-        self.model = self.config.get("model", "whisper-1")
-        self.is_initialized = True
-        logger.info(f"STT service initialized with model: {self.model}")
+        import whisper 
+        model_name = self.config.get("model", "base") 
+        self.client = whisper.load_model(model_name) 
+        self.is_initialized = True 
+        logger.info(f"STT service initialized with model: {model_name}")
     
     async def transcribe(self, audio_bytes: bytes, **kwargs) -> str:
         """
-        Transcribe audio bytes to text using OpenAI Whisper API.
-        
-        Input: audio_bytes (bytes) - Raw audio data in any supported format
-        Output: str - Transcribed text
-        
-        Steps:
-        1. Check if service is initialized
-        2. Wrap audio bytes in a file-like object with filename
-        3. Call OpenAI transcription API
-        4. Return transcribed text
+        Transcribe audio bytes to text using local Whisper.
         """
         if not self.is_ready():
             raise RuntimeError("STT service not initialized")
         
         if not audio_bytes or len(audio_bytes) == 0:
             raise ValueError("Empty audio data provided")
+            
+        import tempfile 
+        import os
         
         try:
-            # Wrap bytes in a file-like buffer with a filename for the API
-            audio_file = io.BytesIO(audio_bytes)
-            audio_file.name = "audio.wav"
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file: 
+                temp_file.write(audio_bytes) 
+                temp_path = temp_file.name
+                
+            result = self.client.transcribe(temp_path) 
             
-            # Call OpenAI Whisper transcription API
-            language = kwargs.get("language", None)
+            os.unlink(temp_path)
             
-            transcription_params = {
-                "model": self.model,
-                "file": audio_file,
-            }
-            if language:
-                transcription_params["language"] = language
-            
-            transcript = await self.client.audio.transcriptions.create(
-                **transcription_params
-            )
-            
-            transcribed_text = transcript.text.strip()
-            logger.info(f"Transcription result: {transcribed_text[:100]}...")
-            return transcribed_text
-            
+            return result["text"].strip()
         except Exception as e:
             logger.error(f"Transcription failed: {str(e)}")
             raise
@@ -167,13 +137,7 @@ class STTService(BaseSTT):
     async def cleanup(self) -> None:
         """
         Cleanup STT resources.
-        
-        Steps:
-        1. Close the OpenAI client
-        2. Set is_initialized to False
         """
-        if self.client:
-            await self.client.close()
         self.client = None
         self.is_initialized = False
         logger.info("STT service cleaned up")

@@ -4,7 +4,6 @@ uvicorn[standard]>=0.24.0
 
 # LLM and Agent framework (required)
 langchain>=0.1.0
-langchain-openai>=0.0.5
 langchain-community>=0.0.10
 
 # STT Options (choose one or more based on implementation)
@@ -15,10 +14,10 @@ langchain-community>=0.0.10
 # google-cloud-speech>=2.21.0  # Google Cloud Speech
 
 # Pretrained models (local inference):
-# openai-whisper>=20231117     # OpenAI Whisper models (tiny, base, small, medium, large)
+openai-whisper>=20231117     # OpenAI Whisper models (tiny, base, small, medium, large)
 # transformers>=4.35.0         # Hugging Face models (Wav2Vec2, etc.)
-# torch>=2.0.0                 # Required for Transformers
-# torchaudio>=2.0.0            # Audio processing for Torch
+torch>=2.0.0                 # Required for Transformers
+torchaudio>=2.0.0            # Audio processing for Torch
 # vosk>=0.3.45                 # Lightweight speech recognition
 # coqui-stt>=1.4.0             # Coqui STT models
 # SpeechRecognition>=3.10.0    # Simple offline/online STT
@@ -26,7 +25,6 @@ langchain-community>=0.0.10
 # TTS Options (choose one or more based on implementation)
 # API-based services:  
 # elevenlabs>=1.0.0            # ElevenLabs API - free tier
-# openai>=1.3.0                # OpenAI TTS API
 # azure-cognitiveservices-speech>=1.34.0  # Azure Speech Services
 # google-cloud-texttospeech>=2.16.0  # Google Cloud TTS
 
@@ -34,7 +32,7 @@ langchain-community>=0.0.10
 # TTS>=0.20.0                  # Coqui TTS - various pretrained models
 # parler-tts>=0.1.0            # Parler TTS from Hugging Face
 # bark>=1.0.0                  # Bark generative audio model
-# edge-tts>=6.1.9              # Free Microsoft Edge voices
+edge-tts>=6.1.9              # Free Microsoft Edge voices
 # festival>=2.5.0              # Classic speech synthesis
 # espeak>=1.48.0               # Lightweight multilingual TTS
 # piper-tts>=1.2.0             # Fast neural TTS

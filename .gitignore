@@ -24,3 +24,17 @@ dist/
 
 # Logs
 *.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated Data & Media
+data/chroma_db/
+*.mp3
+test_output.mp3
+response.mp3
+
+# Streamlit
+.streamlit/

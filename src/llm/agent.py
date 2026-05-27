@@ -85,24 +85,24 @@ class CustomerSupportAgent(BaseAgent):
         Initialize the customer support agent.
         
         Steps:
-        1. Initialize the LLM (OpenAI ChatGPT)
+        1. Initialize the LLM (Ollama)
         2. Set up the knowledge base/vector store
         3. Create RAG tool
         4. Create ReAct agent with tools
         5. Set up agent executor
         """
         import os
-        from langchain_openai import ChatOpenAI
+        from langchain_community.llms import Ollama
         
-        # Initialize LLM with OpenAI
-        api_key = self.config.get("api_key") or os.getenv("OPENAI_API_KEY")
-        model = self.config.get("model", "gpt-3.5-turbo")
-        temperature = self.config.get("temperature", 0.7)
+        # Initialize LLM with Ollama
+        model = self.config.get("model", "phi3:mini")
+        base_url = self.config.get("base_url", "http://localhost:11434")
+        temperature = self.config.get("temperature", 0.3)
         
-        self.llm = ChatOpenAI(
+        self.llm = Ollama(
             model=model,
+            base_url=base_url,
             temperature=temperature,
-            openai_api_key=api_key,
         )
         logger.info(f"LLM initialized with model: {model}")
         
@@ -436,7 +436,15 @@ Thought: {agent_scratchpad}"""
         
         try:
             result = await self.agent_executor.ainvoke({"input": text})
-            return result.get("output", "I'm sorry, I couldn't process your request.")
+            output = result.get("output", "I'm sorry, I couldn't process your request.")
+            
+            # Small local models (like phi3:mini) often fail to follow LangChain's strict ReAct formatting.
+            # If the agent hits the iteration limit, we trigger the fallback mechanism.
+            if "Agent stopped due to iteration limit" in output:
+                logger.warning("Agent hit iteration limit due to parsing errors. Triggering RAG fallback.")
+                raise ValueError("Agent parsing failed (iteration limit reached)")
+                
+            return output
         except Exception as e:
             logger.error(f"Agent processing error: {str(e)}")
             # Fallback: try direct RAG search if agent fails
