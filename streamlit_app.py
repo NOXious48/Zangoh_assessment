@@ -94,7 +94,7 @@ def send_text_message(server_url: str, text: str, parameters: Dict[str, Any] = N
             f"{server_url}/chat/text",
             json=payload,
             headers={"Content-Type": "application/json"},
-            timeout=30
+            timeout=120
         )
         
         if response.status_code == 200:

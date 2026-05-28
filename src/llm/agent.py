@@ -416,7 +416,7 @@ Thought: {agent_scratchpad}"""
             verbose=True,
             memory=self.memory,
             handle_parsing_errors=True,
-            max_iterations=5,
+            max_iterations=2,
         )
         logger.info("ReAct agent created successfully")
     
